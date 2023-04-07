@@ -72,13 +72,15 @@ def train_and_test(args):
             train_loss += loss
             loss_1000 += loss
 
+            del img, ids, masks, similarity_matrix, labels, loss
+
             if num_batches % 1000 == 0:
-                print('The average loss of {} to {} iteration is: '.format(num_batches - 999, num_batches), loss_100 / 1000)
+                print('\nThe average loss of {} to {} iteration is: '.format(num_batches - 999, num_batches), loss_1000 / 1000, flush=True)
                 loss_1000 = 0
             
  
         train_loss = train_loss / num_batches
-        print(f'Training loss for epoch {epoch + 1}: {train_loss : .3f}')
+        print(f'\nTraining loss for epoch {epoch + 1}: {train_loss : .3f}', flush=True)
     
         dataType = 'val'
         accuracy_matrix_size = 128
@@ -111,7 +113,7 @@ def train_and_test(args):
                 totalAccuracy += accuracy
         
         totalAccuracy /= num_test
-        print('The test accuracy is: {totalAccuracy}')
+        print('\nThe test accuracy is: {totalAccuracy}', flush=True)
 
                 
     
@@ -129,7 +131,7 @@ def get_args():
     parser.add_argument("--embedding_size", type=int, default=768)
     
     # hyper parameters we often adjust
-    parser.add_argument("--batch_size", type=int, default=24)
+    parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--img_model", type=str, default='ViT-B/32')
     parser.add_argument("--text_model", type=str, default='bert-base-uncased')
     parser.add_argument("--similarity_method", type=str, default='cos_similarity')
@@ -137,7 +139,7 @@ def get_args():
 
 
     args = parser.parse_args()
-    print(f"args: {vars(args)}")
+    print(f"args: {vars(args)}", flush=True)
     return args
 
 if __name__ == "__main__":
