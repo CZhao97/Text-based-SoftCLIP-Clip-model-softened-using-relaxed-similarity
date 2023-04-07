@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import torchvision.transforms as transforms
 from Load_data import load_as_dataset
 import argparse, os
+import numpy as np
 from tqdm import tqdm
 
 def train_and_test(args):
@@ -24,9 +25,9 @@ def train_and_test(args):
     model = Pclip(config)
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    trans_type = 'random resize crop'
     
     dataType = 'train'
-    trans_type = 'random resize crop'
     train_dataset = load_as_dataset(dataType, batch_size, dir, trans_type, args.text_model)
     model.train()
 
@@ -43,7 +44,7 @@ def train_and_test(args):
     for epoch in range(args.epochs):
         train_loss = 0
         num_batches = 0
-        loss_100 = 0
+        loss_1000 = 0
 
         for img, text in tqdm(train_dataset):
             caption = tokenizer(text, padding=True, truncation=True, return_tensors="pt")
@@ -69,14 +70,48 @@ def train_and_test(args):
             
             num_batches += 1
             train_loss += loss
-            loss_100 += loss
+            loss_1000 += loss
 
-            if num_batches % 100 == 0:
-                print('The average loss of past 100 iterations is: ', loss_100 / 100)
-                loss_100 = 0
-        
+            if num_batches % 1000 == 0:
+                print('The average loss of {} to {} iteration is: '.format(num_batches - 999, num_batches), loss_100 / 1000)
+                loss_1000 = 0
+            
+ 
         train_loss = train_loss / num_batches
         print(f'Training loss for epoch {epoch + 1}: {train_loss : .3f}')
+    
+        dataType = 'val'
+        accuracy_matrix_size = 128
+        train_dataset = load_as_dataset(dataType, accuracy_matrix_size, dir, trans_type, args.text_model)
+        model.eval()
+
+        with torch.no_grad():
+            totalAccuracy = 0
+            num_test = 0
+            for img, text in tqdm(train_dataset):
+                caption = tokenizer(text, padding=True, truncation=True, return_tensors="pt")
+                ids, masks = caption['input_ids'], caption['attention_mask']
+
+                if args.img_model != 'resnet50':
+                    to_pil_image = transforms.ToPILImage()
+                    images = [to_pil_image(image) for image in img]
+                    img = processor(images, return_tensors="pt")
+
+                img, ids, masks = img.to(device), ids.to(device), masks.to(device)
+                similarity_matrix = model(img, ids, masks)
+
+                pred_label = torch.argmax(similarity_matrix, dim=0, keepdim=False)
+                if args.gpu:
+                    pred_label = pred_label.cpu()
+                pred_label = pred_label.numpy()
+                labels = np.array(range(accuracy_matrix_size))
+                accuracy = np.sum(labels == pred_label) / accuracy_matrix_size
+
+                num_test += 1
+                totalAccuracy += accuracy
+        
+        totalAccuracy /= num_test
+        print('The test accuracy is: {totalAccuracy}')
 
                 
     
