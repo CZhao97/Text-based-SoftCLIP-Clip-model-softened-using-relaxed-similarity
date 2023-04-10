@@ -29,7 +29,6 @@ class COCODataset(Dataset):
         image = Image.open(img_path).convert("RGB")
         if self.transform:
             image = self.transform(image)
-        
         return image, text
 
     def __len__(self):
@@ -61,7 +60,7 @@ def load_as_dataset(dataType, batch_size,dir = 'coco', trans_type = None, text_m
     coco_dataset = COCODataset(coco, img_dir, text_model, transform)
 
     # Load as batches
-    coco_dataloader = DataLoader(coco_dataset, batch_size=batch_size, shuffle=True)
+    coco_dataloader = DataLoader(coco_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
 
     return coco_dataloader
 

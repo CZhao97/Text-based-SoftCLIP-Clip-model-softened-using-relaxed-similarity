@@ -3,6 +3,7 @@ import torch.nn as nn
 import timm
 from transformers import BertModel, BertTokenizer, RobertaTokenizer, RobertaModel, ViTFeatureExtractor, ViTModel
 import torchvision
+from torch.utils.checkpoint import checkpoint
 import torch.nn.functional as F
 
 
@@ -44,7 +45,7 @@ class Pclip(nn.Module):
             #self.processor = ViTFeatureExtractor.from_pretrained(vit_model_name)
             self.img_encoder = ViTModel.from_pretrained(vit_model_name)
             self.img_linear = nn.Linear(768, self.embedding_size)
-        
+
     def forward(self, img, ids, masks):
         if self.img_model == 'resnet50':
             img_embed = self.img_encoder(img)
@@ -60,6 +61,7 @@ class Pclip(nn.Module):
             text_embed = self.text_encoder(input_ids=ids, attention_mask=masks).pooler_output
         elif self.text_model == 'roberta-base':
             text_embed = self.text_encoder(input_ids=ids, attention_mask=masks)[:, 0, :]
+
         text_embed = self.text_linear(text_embed)
         text_embed = text_embed / torch.norm(text_embed, dim=1, keepdim=True)
 
