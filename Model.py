@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import timm
 from transformers import BertModel, BertTokenizer, RobertaTokenizer, RobertaModel, ViTFeatureExtractor, ViTModel
 import torchvision
 import torch.nn.functional as F
@@ -20,13 +19,18 @@ class Pclip(nn.Module):
             #self.tokenizer = BertTokenizer.from_pretrained(self.text_model)
             self.text_encoder = BertModel.from_pretrained(self.text_model)
             self.text_linear = nn.Linear(self.text_encoder.config.hidden_size, self.embedding_size)
+            self.cat_sentence_text_encoder = BertModel.from_pretrained(self.text_model)
+            for name, param in self.cat_sentence_text_encoder.named_parameters():
+                param.requires_grad = False
         
         if self.text_model == 'roberta-base':
             #self.tokenizer = RobertaTokenizer.from_pretrained(self.text_model)
             self.text_encoder = RobertaModel.from_pretrained(self.text_model)
             self.text_linear = nn.Linear(self.config.hidden_size, self.embedding_size)
+            self.cat_sentence_text_encoder = RobertaModel.from_pretrained(self.text_model)
+            for name, param in self.cat_sentence_text_encoder.named_parameters():
+                param.requires_grad = False
         
-
         # For image encoder
         if self.img_model == 'resnet50':
             model = torchvision.models.resnet50(pretrained=True)
@@ -45,7 +49,7 @@ class Pclip(nn.Module):
             self.img_encoder = ViTModel.from_pretrained(vit_model_name)
             self.img_linear = nn.Linear(768, self.embedding_size)
         
-    def forward(self, img, ids, masks):
+    def forward(self, img, ids, masks, cat_ids, cat_masks):
         if self.img_model == 'resnet50':
             img_embed = self.img_encoder(img)
             img_embed = img_embed.view(img_embed.size(0), -1)
@@ -58,18 +62,27 @@ class Pclip(nn.Module):
 
         if self.text_model == 'bert-base-uncased':
             text_embed = self.text_encoder(input_ids=ids, attention_mask=masks).pooler_output
+            text_embed_cat = self.cat_sentence_text_encoder(input_ids=cat_ids, attention_mask=cat_masks).pooler_output
+            text_embed_cap = self.cat_sentence_text_encoder(input_ids=ids, attention_mask=masks).pooler_output
         elif self.text_model == 'roberta-base':
             text_embed = self.text_encoder(input_ids=ids, attention_mask=masks)[:, 0, :]
+            text_embed_cat = self.cat_sentence_text_encoder(input_ids=cat_ids, attention_mask=cat_masks)[:, 0, :]
+            text_embed_cap = self.cat_sentence_text_encoder(input_ids=ids, attention_mask=masks)[:, 0, :]
+            
         text_embed = self.text_linear(text_embed)
         text_embed = text_embed / torch.norm(text_embed, dim=1, keepdim=True)
+        
+        text_embed_cat = text_embed_cat / torch.norm(text_embed_cat, dim=1, keepdim=True)
+        text_embed_cap = text_embed_cap / torch.norm(text_embed_cap, dim=1, keepdim=True)
 
         # Compare similarity
         if self.similarity_method == 'cos_similarity':
             similarity_matrix = (torch.matmul(img_embed, text_embed.T) + torch.matmul(text_embed, img_embed.T)) / 2
-
+            similarity_matrix_text = ((torch.matmul(text_embed_cat, text_embed_cap.T) + torch.matmul(text_embed_cap, text_embed_cat.T)) / 2)
+            similarity_matrix_text = similarity_matrix_text.requires_grad_(False)
         #elif self.similarity_method == '':
 
-        return similarity_matrix
+        return similarity_matrix, similarity_matrix_text
 
 
 def nt_xent_loss(similarity_matrix, labels, temperature=0.1):
