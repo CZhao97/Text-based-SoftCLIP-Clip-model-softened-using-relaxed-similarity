@@ -132,7 +132,8 @@ def train_and_test(args):
     
     dataType = 'val'
     accuracy_matrix_size = 128
-    test_dataset = load_as_dataset(dataType, accuracy_matrix_size, dir, trans_type, args.text_model)
+    test_dataset = load_as_dataset(dataType, accuracy_matrix_size,yolov7_detector, dir, trans_type, args.text_model)
+    
     model.eval()
 
     with torch.no_grad():
