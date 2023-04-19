@@ -8,6 +8,9 @@
 
 The Clip model is a well-known multimodal representation learning framework that has demonstrated remarkable performance across several natural language processing and computer vision tasks. However, the efficacy of this model is heavily reliant on high-quality image-text pairs that are entirely independent of each other to prevent any biases and facilitate accurate representation learning. Unfortunately, obtaining such pairs remains a challenging task, and the noise persists in commonly used datasets. To address this issue, we propose Text-based SoftCLIP, a novel approach that uses text embedding similarities to achieve a soft cross-modal alignment. This approach allows for greater flexibility in image-text pairs, thereby enabling the model to capture many-to-many relationships between the two modalities. SoftCLIP generates captions from images and compares their similarity with the original captions to create a softened target, allowing for greater flexibility in image-text pairs. We use pre-trained models, including BERT, RoBERTa, ResNet50, ViT, and Yolo V7, and experiment on COCO dataset. Our approach does not significantly impact object detection accuracy in image-text pairing tasks, and the accuracy scores are comparable to those trained with a strict one-to-one mapping. This suggests that our approach is better suited for handling noisy data and can better adapt to real-world data's unpredictable nature.
 
+## Flow Chart
+![Screenshot](flowchart.PNG)
+
 ## Getting Started
 
 ### Installing
