@@ -12,7 +12,7 @@ The Clip model is a well-known multimodal representation learning framework that
 
 ### Installing
 
-* Downloading: git clone https://github.com/CZhao97/CSC2516_Project_Clip_Like_Multimodel.git
+* Downloading: git clone https://github.com/CZhao97/Text-based-SoftCLIP-Clip-model-softened-using-relaxed-similarity
 * pip install -r requirements.txt
 
 ### Executing program
