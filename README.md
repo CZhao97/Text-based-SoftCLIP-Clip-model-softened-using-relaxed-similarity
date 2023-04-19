@@ -24,7 +24,7 @@ Testing: sh test.sh
 ```
 
 
-## Authors
+## Authors (contributed equally)
 
 Contributors names and contact info
 
