@@ -27,7 +27,8 @@ def train_and_test(args):
         'img_model': args.img_model,
         'embedding_size': args.embedding_size,
         'similarity_method': args.similarity_method,
-        'dropout': args.dropout
+        'dropout': args.dropout,
+        'process': "train"
     }
     config = SimpleNamespace(**config)
 
@@ -40,7 +41,7 @@ def train_and_test(args):
     to_pil_image = transforms.ToPILImage()
     
     dataType = 'train'
-    train_dataset = load_as_dataset(dataType, batch_size, yolov7_detector, dir, trans_type, args.text_model)
+    train_dataset = load_as_dataset(dataType, batch_size, yolov7_detector, dir, trans_type, args.text_model, "train")
     model.train()
 
     if args.text_model == 'bert-base-uncased':
@@ -132,8 +133,11 @@ def train_and_test(args):
     
     dataType = 'val'
     accuracy_matrix_size = 128
-    test_dataset = load_as_dataset(dataType, accuracy_matrix_size, dir, trans_type, args.text_model)
+    test_dataset = load_as_dataset(dataType, accuracy_matrix_size,yolov7_detector, dir, trans_type, args.text_model, "test")
+    
     model.eval()
+
+    model.process="test"
 
     with torch.no_grad():
         totalAccuracy = 0
@@ -142,16 +146,13 @@ def train_and_test(args):
             caption = tokenizer(text, padding=True, truncation=True, return_tensors="pt")
             ids, masks = caption['input_ids'], caption['attention_mask']
 
-            tokenized_cat = tokenizer(cat_sentence, padding=True, truncation=True, return_tensors="pt")
-            cat_ids, cat_masks = tokenized_cat['input_ids'], tokenized_cat['attention_mask']
-
             if args.img_model != 'resnet50':
                 to_pil_image = transforms.ToPILImage()
                 images = [to_pil_image(image) for image in img]
                 img = processor(images, return_tensors="pt")
 
-            img, ids, masks, cat_ids, cat_masks = img.to(device), ids.to(device), masks.to(device), cat_ids.to(device), cat_masks.to(device)
-            similarity_matrix, similarity_matrix_text = model(img, ids, masks, cat_ids, cat_masks)
+            img, ids, masks = img.to(device), ids.to(device), masks.to(device)
+            similarity_matrix = model(img, ids, masks, None, None)
 
 
             pred_label = torch.argmax(similarity_matrix, dim=0, keepdim=False)
@@ -167,9 +168,7 @@ def train_and_test(args):
     totalAccuracy /= num_test
     print(f'\nThe test accuracy is: {totalAccuracy}', flush=True)
 
-                
-    
-    
+
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -177,6 +176,7 @@ def get_args():
     parser.add_argument("--gpu", action='store_true')
     parser.add_argument("--save_model", action='store_true')
     parser.add_argument("--save_dir", type=str, default="models/model.pt")
+
 
     # hyper parameters
     parser.add_argument("--batch_size", type=int, default=16)

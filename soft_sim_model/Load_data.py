@@ -13,7 +13,7 @@ import pylab
 
 # Define dataset
 class COCODataset(Dataset):
-    def __init__(self, coco, img_dir, text_model, detector, transform = None):
+    def __init__(self, coco, img_dir, text_model, detector, transform = None, process="train"):
         self.coco = coco
         self.img_dir = img_dir
         self.ids = list(coco.anns.keys())
@@ -43,23 +43,27 @@ class COCODataset(Dataset):
         image = np.asarray(image)
 
         # boxes, scores, class_ids
-        _, _, class_ids = self.detector(image)
-        label = [self.detector_classes[class_id] for class_id in class_ids]
-        cat_sentence = ', '.join(np.unique(np.array(label)))
-        
-        image = Image.fromarray(image)
+        if process!="train":
+            _, _, class_ids = self.detector(image)
+            label = [self.detector_classes[class_id] for class_id in class_ids]
+            cat_sentence = ', '.join(np.unique(np.array(label)))
+            
+            image = Image.fromarray(image)
         
         if self.transform:
             image = self.transform(image)
             
-        return image, text, cat_sentence
+        if process!="train":
+            return image, text
+        else:
+            return image, text, cat_sentence
     
 
     def __len__(self):
         return len(self.ids)
 
 # Loading data
-def load_as_dataset(dataType, batch_size, detector, dir = 'coco', trans_type = None, text_model = None):
+def load_as_dataset(dataType, batch_size, detector, dir = 'coco', trans_type = None, text_model = None, process="train"):
     img_dir = '{}/{}2017'.format(dir, dataType)
     annFile='{}/annotations/captions_{}2017.json'.format(dir, dataType)
     coco=COCO(annFile)
@@ -81,7 +85,7 @@ def load_as_dataset(dataType, batch_size, detector, dir = 'coco', trans_type = N
 
     
     # Create dataset
-    coco_dataset = COCODataset(coco, img_dir, text_model, detector, transform)
+    coco_dataset = COCODataset(coco, img_dir, text_model, detector, transform, process)
 
     # Load as batches
     coco_dataloader = DataLoader(coco_dataset, batch_size=batch_size, shuffle=True)

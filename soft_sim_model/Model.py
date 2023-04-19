@@ -13,6 +13,7 @@ class Pclip(nn.Module):
         self.similarity_method = config.similarity_method
         self.embedding_size = config.embedding_size
         self.dropout = config.dropout
+        self.process = config.process
 
         # For text encoder
         if self.text_model == 'bert-base-uncased':
@@ -60,30 +61,48 @@ class Pclip(nn.Module):
         img_embed = self.img_linear(img_embed)
         img_embed = img_embed / torch.norm(img_embed, dim=1, keepdim=True)
 
-        if self.text_model == 'bert-base-uncased':
-            text_embed = self.text_encoder(input_ids=ids, attention_mask=masks).pooler_output
-            text_embed_cat = self.cat_sentence_text_encoder(input_ids=cat_ids, attention_mask=cat_masks).pooler_output
-            text_embed_cap = self.cat_sentence_text_encoder(input_ids=ids, attention_mask=masks).pooler_output
-        elif self.text_model == 'roberta-base':
-            text_embed = self.text_encoder(input_ids=ids, attention_mask=masks)[:, 0, :]
-            text_embed_cat = self.cat_sentence_text_encoder(input_ids=cat_ids, attention_mask=cat_masks)[:, 0, :]
-            text_embed_cap = self.cat_sentence_text_encoder(input_ids=ids, attention_mask=masks)[:, 0, :]
+        if self.process == "train":
+
+            if self.text_model == 'bert-base-uncased':
+                text_embed = self.text_encoder(input_ids=ids, attention_mask=masks).pooler_output
+                text_embed_cat = self.cat_sentence_text_encoder(input_ids=cat_ids, attention_mask=cat_masks).pooler_output
+                text_embed_cap = self.cat_sentence_text_encoder(input_ids=ids, attention_mask=masks).pooler_output
+            elif self.text_model == 'roberta-base':
+                text_embed = self.text_encoder(input_ids=ids, attention_mask=masks)[:, 0, :]
+                text_embed_cat = self.cat_sentence_text_encoder(input_ids=cat_ids, attention_mask=cat_masks)[:, 0, :]
+                text_embed_cap = self.cat_sentence_text_encoder(input_ids=ids, attention_mask=masks)[:, 0, :]
+                
+            text_embed = self.text_linear(text_embed)
+            text_embed = text_embed / torch.norm(text_embed, dim=1, keepdim=True)
             
-        text_embed = self.text_linear(text_embed)
-        text_embed = text_embed / torch.norm(text_embed, dim=1, keepdim=True)
-        
-        text_embed_cat = text_embed_cat / torch.norm(text_embed_cat, dim=1, keepdim=True)
-        text_embed_cap = text_embed_cap / torch.norm(text_embed_cap, dim=1, keepdim=True)
+            text_embed_cat = text_embed_cat / torch.norm(text_embed_cat, dim=1, keepdim=True)
+            text_embed_cap = text_embed_cap / torch.norm(text_embed_cap, dim=1, keepdim=True)
 
-        # Compare similarity
-        if self.similarity_method == 'cos_similarity':
-            similarity_matrix = (torch.matmul(img_embed, text_embed.T) + torch.matmul(text_embed, img_embed.T)) / 2
-            similarity_matrix_text = ((torch.matmul(text_embed_cat, text_embed_cap.T) + torch.matmul(text_embed_cap, text_embed_cat.T)) / 2)
-            similarity_matrix_text = similarity_matrix_text.requires_grad_(False)
-        #elif self.similarity_method == '':
+            # Compare similarity
+            if self.similarity_method == 'cos_similarity':
+                similarity_matrix = (torch.matmul(img_embed, text_embed.T) + torch.matmul(text_embed, img_embed.T)) / 2
+                similarity_matrix_text = ((torch.matmul(text_embed_cat, text_embed_cap.T) + torch.matmul(text_embed_cap, text_embed_cat.T)) / 2)
+                similarity_matrix_text = similarity_matrix_text.requires_grad_(False)
+            #elif self.similarity_method == '':
 
-        return similarity_matrix, similarity_matrix_text
+            return similarity_matrix, similarity_matrix_text
 
+        else:
+            if self.text_model == 'bert-base-uncased':
+                text_embed = self.text_encoder(input_ids=ids, attention_mask=masks).pooler_output
+
+            elif self.text_model == 'roberta-base':
+                text_embed = self.text_encoder(input_ids=ids, attention_mask=masks)[:, 0, :]
+                
+            text_embed = self.text_linear(text_embed)
+            text_embed = text_embed / torch.norm(text_embed, dim=1, keepdim=True)
+
+            # Compare similarity
+            if self.similarity_method == 'cos_similarity':
+                similarity_matrix = (torch.matmul(img_embed, text_embed.T) + torch.matmul(text_embed, img_embed.T)) / 2
+            #elif self.similarity_method == '':
+
+            return similarity_matrix
 
 def nt_xent_loss(similarity_matrix, labels, temperature=0.1):
     # Calculate the loss for image-text pairs
