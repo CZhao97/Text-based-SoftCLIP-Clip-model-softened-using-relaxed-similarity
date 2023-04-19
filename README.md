@@ -1,1 +1,1 @@
-# CSC2516_Project_Clip_Like_Multimodel
+# Text-based SoftCLIP: Clip model softened using relaxed similarity
